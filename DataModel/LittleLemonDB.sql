@@ -349,6 +349,47 @@ END$$
 DELIMITER ;
 
 -- -----------------------------------------------------
+-- procedure UpdateBooking
+-- -----------------------------------------------------
+
+DELIMITER $$
+USE `LittleLemonDB`$$
+CREATE PROCEDURE `UpdateBooking` (
+	IN booking_id INT,
+    IN booking_date DATE
+)
+BEGIN
+    -- 订单数量
+    DECLARE booking_count INT;
+    
+    -- 开始事务
+    START TRANSACTION;
+
+    -- 检查预订冲突
+    SELECT COUNT(1) INTO booking_count
+    FROM Bookings
+    WHERE BookingId=booking_id;
+
+    -- IF ELSE 逻辑判断
+    IF booking_count = 0 THEN
+        -- 如果未提交，回滚事务
+        ROLLBACK;
+        SELECT CONCAT('Booking Information Uncommitted') AS `Confirmation`;
+    ELSE
+        -- 如果已预订，更新信息
+        UPDATE Bookings
+        SET BookingDate = booking_date
+        WHERE BookingId = booking_id;
+        
+        -- 提交事务
+        COMMIT;
+        SELECT CONCAT("Booking ", booking_id, " Updated") AS `Confirmation`;
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- -----------------------------------------------------
 -- View `LittleLemonDB`.`OrdersView`
 -- -----------------------------------------------------
 DROP TABLE IF EXISTS `LittleLemonDB`.`OrdersView`;
