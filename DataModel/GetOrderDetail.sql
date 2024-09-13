@@ -1,0 +1,1 @@
+PREPARE GetOrderDetail FROM 'SELECT OrderId AS OrderID, Quantity, TotalCost AS Cost FROM Orders WHERE OrderId=?';
