@@ -276,6 +276,79 @@ END$$
 DELIMITER ;
 
 -- -----------------------------------------------------
+-- procedure AddBooking
+-- -----------------------------------------------------
+
+DELIMITER $$
+USE `LittleLemonDB`$$
+CREATE PROCEDURE `AddBooking` (
+	IN booking_id INT,
+    IN customer_id INT,
+    IN table_no INT,
+    IN booking_date DATE
+)
+BEGIN
+    DECLARE phone_no VARCHAR(20);
+    DECLARE employee_id INT;
+    
+    -- 用户数量
+    DECLARE customer_count INT;
+    -- 订单数量
+    DECLARE booking_count INT;
+    
+    
+    -- 开始事务
+    START TRANSACTION;
+
+	-- 检查重复用户
+	SELECT
+		COUNT(1) INTO customer_count
+	FROM Customer
+    WHERE CustomerId = customer_id;
+    
+    -- 获取电话号码，如果没有用户ID，那么生成随机电话号码 (格式为: XXX-XXX-XXXX)
+    IF customer_count = 0 THEN
+		SELECT CONCAT(
+			LPAD(FLOOR(RAND() * 900) + 100, 3, '0'), '-', 
+			LPAD(FLOOR(RAND() * 900) + 100, 3, '0'), '-', 
+			LPAD(FLOOR(RAND() * 10000), 4, '0')
+		) INTO phone_no;
+	ELSE
+		SELECT
+			PhoneNo INTO phone_no
+		FROM Customer
+        WHERE CustomerId = customer_id
+        GROUP BY 1;
+	END IF;
+    
+    -- 生成随机员工ID (假设1-100为有效ID)
+    SELECT FLOOR(1 + RAND() * 100) INTO employee_id;
+    
+
+    -- 检查预订冲突
+    SELECT COUNT(1) INTO booking_count
+    FROM Bookings
+    WHERE (BookingDate = booking_date AND TableNo = table_no) OR BookingId=booking_id;
+
+    -- IF ELSE 逻辑判断
+    IF booking_count > 0 THEN
+        -- 如果已预订，回滚事务
+        ROLLBACK;
+        SELECT CONCAT('Booking Duplicated, Commissiong Failed') AS `Confirmation`;
+    ELSE
+        -- 如果未预订，插入新预订并提交事务
+        INSERT INTO Bookings (BookingId, BookingDate, TableNo, PhoneNo, EmployeeId)
+        VALUES (booking_id, booking_date, table_no, phone_no, employee_id);
+
+        -- 提交事务
+        COMMIT;
+        SELECT "New Booking Added" AS `Confirmation`;
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- -----------------------------------------------------
 -- View `LittleLemonDB`.`OrdersView`
 -- -----------------------------------------------------
 DROP TABLE IF EXISTS `LittleLemonDB`.`OrdersView`;
@@ -306,10 +379,6 @@ GROUP BY 1
 HAVING SUM(t2.Quantity) > 2
 )
 ;
-
-SET SQL_MODE=@OLD_SQL_MODE;
-SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
-SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
 USE `LittleLemonDB`;
 
 DELIMITER $$
@@ -327,3 +396,7 @@ END$$
 
 
 DELIMITER ;
+
+SET SQL_MODE=@OLD_SQL_MODE;
+SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
+SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
